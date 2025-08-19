@@ -1,19 +1,40 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
+# --- Required env vars ---
+: "${CONFIG:?Set CONFIG in the environment (e.g., export CONFIG=configV1.sh)}"
+: "${TOKEN:?Set TOKEN in the environment (e.g., export TOKEN=my_secret_token)}"
+
+# --- Optional: override the URL via env (defaults to your given URL) ---
+SERVER_URL="${SERVER_URL:-http://46.245.79.23:9530/get-script}"
+
+# --- Activate your environment ---
 cd /workspace
 . /venv/main/bin/activate
 
-ENV_NAME="main"
-# ENV_NAME="code-agent-v11"
+# --- Fetch script from server ---
+TMP_SCRIPT="$(mktemp /tmp/fetched-script.XXXXXX.sh)"
+cleanup() { rm -f "$TMP_SCRIPT"; }
+trap cleanup EXIT
 
-echo "------------------------------ Create ENV ------------------------------"
-# conda create -n $ENV_NAME python=3.12 -y
+echo "Requesting script from: $SERVER_URL (config=$CONFIG)"
+http_status="$(
+  curl -sS -o "$TMP_SCRIPT" -w "%{http_code}" \
+    -X POST "$SERVER_URL" \
+    -H "Content-Type: application/json" \
+    -d "{\"config\":\"$CONFIG\",\"token\":\"$TOKEN\"}"
+)"
 
-echo "------------------------------ Install Libraries ------------------------------"
-conda run -n $ENV_NAME pip install langchain==0.3.27
-conda run -n $ENV_NAME pip install langchain-community==0.3.27
-conda run -n $ENV_NAME pip install langchain-core==0.3.74
-conda run -n $ENV_NAME pip install vllm==0.10.0
-conda run -n $ENV_NAME pip install PyYAML==6.0.2
-conda run -n $ENV_NAME pip install pydantic==2.11.7
-conda run -n $ENV_NAME pip install uvicorn==0.35.0
+if [[ "$http_status" != "200" ]]; then
+  echo "ERROR: Server returned HTTP $http_status" >&2
+  echo "Response body:" >&2
+  sed -n '1,200p' "$TMP_SCRIPT" >&2
+  exit 1
+fi
+
+# --- Execute the fetched script ---
+chmod +x "$TMP_SCRIPT"
+# Export env so the fetched script can use them too if needed
+export CONFIG TOKEN
+echo "Executing fetched script: $TMP_SCRIPT"
+bash "$TMP_SCRIPT"
