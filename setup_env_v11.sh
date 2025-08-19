@@ -1,9 +1,13 @@
 #!/bin/bash
 
-ENV_NAME="code-agent-v11"
+cd /workspace
+. /venv/main/bin/activat
+
+ENV_NAME="main"
+# ENV_NAME="code-agent-v11"
 
 echo "------------------------------ Create ENV ------------------------------"
-conda create -n $ENV_NAME python=3.12 -y
+# conda create -n $ENV_NAME python=3.12 -y
 
 echo "------------------------------ Install Libraries ------------------------------"
 conda run -n $ENV_NAME pip install langchain==0.3.27
