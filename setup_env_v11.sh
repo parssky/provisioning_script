@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd /workspace
-. /venv/main/bin/activat
+. /venv/main/bin/activate
 
 ENV_NAME="main"
 # ENV_NAME="code-agent-v11"
